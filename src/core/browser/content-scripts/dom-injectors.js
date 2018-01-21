@@ -9,10 +9,14 @@ export function injectCSS(path) {
   document.getElementsByTagName('head')[0].appendChild(link);
 }
 
-export function injectScript(path) {
+export function injectScript(path, attributes = {}) {
   const script = document.createElement('script');
   script.setAttribute('type', 'text/javascript');
   script.setAttribute('src', getBrowser().runtime.getURL(path));
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    script.setAttribute(key, value);
+  });
 
   document.getElementsByTagName('head')[0].appendChild(script);
 }
