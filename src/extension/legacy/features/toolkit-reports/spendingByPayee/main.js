@@ -26,16 +26,13 @@
           const isTransfer = masterCategoryId === null || subCategoryId === null;
           const ynabCategory = categoriesViewModel.getMasterCategoryById(masterCategoryId);
           const isInternalDebtCategory = isTransfer ? false : ynabCategory.isDebtPaymentMasterCategory();
-          const payee = transaction.getPayee();
-          const isStartingBalance = payee && payee.getInternalName() === ynab.constants.InternalPayees.StartingBalance;
 
           return (
             transaction.getAmount() &&
             !transaction.get('isSplit') &&
             !isTransfer &&
             !isInternalDebtCategory &&
-            !isStartingBalance &&
-            !transaction.get('inflow')
+            !ynabCategory.isInternalMasterCategory()
           );
         },
 
@@ -200,6 +197,8 @@
         }
       };
     }());
+  } else if (typeof Ember !== 'undefined') {
+    Ember.run.next(poll, 250);
   } else {
     setTimeout(poll, 250);
   }

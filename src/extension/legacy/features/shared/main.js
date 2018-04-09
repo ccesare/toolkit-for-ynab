@@ -384,13 +384,13 @@ ynabToolKit.shared = (function () {
       }
     },
 
-    getToolkitStorageKey(key, type) {
-      let value = localStorage.getItem(storageKeyPrefix + key);
+    getToolkitStorageKey(key) {
+      const value = localStorage.getItem(storageKeyPrefix + key);
 
-      switch (type) {
-        case 'boolean': return value === 'true';
-        case 'number': return Number(value);
-        default: return value;
+      try {
+        return JSON.parse(value);
+      } catch (e) {
+        return value;
       }
     },
 
@@ -458,6 +458,8 @@ ynabToolKit.shared = (function () {
       ynabToolKit.shared.removeToolkitStorageKey('latest-version');
       ynabToolKit.shared.showNewReleaseModal();
     }
+  } else if (typeof Ember !== 'undefined') {
+    Ember.run.next(poll, 250);
   } else {
     setTimeout(poll, 250);
   }
