@@ -1,5 +1,6 @@
 import { Feature } from 'toolkit/extension/features/feature';
-import { getCurrentRouteName } from 'toolkit/extension/utils/ynab';
+import { isCurrentRouteAccountsPage } from 'toolkit/extension/utils/ynab';
+import { controllerLookup } from 'toolkit/extension/utils/ember';
 
 export class EasyTransactionApproval extends Feature {
   initBudgetVersion = true;
@@ -9,7 +10,7 @@ export class EasyTransactionApproval extends Feature {
   selectedTransactions = undefined;
 
   shouldInvoke() {
-    return getCurrentRouteName().indexOf('account') !== -1;
+    return isCurrentRouteAccountsPage();
   }
 
   observe(changedNodes) {
@@ -36,7 +37,7 @@ export class EasyTransactionApproval extends Feature {
   addBudgetVersionIdObserver() {
     var _this = this;
 
-    var applicationController = ynabToolKit.shared.containerLookup('controller:application');
+    var applicationController = controllerLookup('application');
     applicationController.addObserver('budgetVersionId', function () {
       Ember.run.scheduleOnce('afterRender', this, function () {
         _this.initKeyLoop = true;
@@ -48,7 +49,7 @@ export class EasyTransactionApproval extends Feature {
   invoke() {
     // get selected transactions
     this.selectedTransactions = undefined;
-    var accountController = ynabToolKit.shared.containerLookup('controller:accounts');
+    var accountController = controllerLookup('accounts');
     var visibleTransactionDisplayItems = accountController.get('visibleTransactionDisplayItems');
     this.selectedTransactions = visibleTransactionDisplayItems.filter(i => i.isChecked && i.get('accepted') === false);
 

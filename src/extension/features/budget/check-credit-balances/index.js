@@ -1,5 +1,7 @@
 import { Feature } from 'toolkit/extension/features/feature';
-import { getAllBudgetMonthsViewModel, getCurrentBudgetDate, getCurrentBudgetMonth, getCurrentRouteName } from 'toolkit/extension/utils/ynab';
+import { getAllBudgetMonthsViewModel, getCurrentBudgetDate, getSelectedMonth, isCurrentRouteBudgetPage } from 'toolkit/extension/utils/ynab';
+import { formatCurrency } from 'toolkit/extension/utils/currency';
+import { l10n } from 'toolkit/extension/utils/toolkit';
 
 export class CheckCreditBalances extends Feature {
   budgetView = null;
@@ -9,14 +11,10 @@ export class CheckCreditBalances extends Feature {
   }
 
   shouldInvoke() {
-    return getCurrentRouteName().indexOf('budget') !== -1;
+    return isCurrentRouteBudgetPage();
   }
 
   invoke() {
-    if (this.currentYear === 0 || this.currentMonth === 0) {
-      this.onMonthChanged(getCurrentBudgetMonth());
-    }
-
     if (this.inCurrentMonth()) {
       let debtAccounts = this.getDebtAccounts();
 
@@ -32,7 +30,7 @@ export class CheckCreditBalances extends Feature {
     if (!this.shouldInvoke()) return;
 
     if (changedNodes.has('navlink-budget active') ||
-        changedNodes.has('budget-table-cell-available-div user-data') ||
+        changedNodes.has('ynab-new-budget-available-number user-data') ||
         changedNodes.has('budget-inspector') ||
         changedNodes.has('budget-table-row is-sub-category is-debt-payment-category is-checked') ||
         changedNodes.has('budget-header-totals-cell-value user-data')) {
@@ -90,7 +88,7 @@ export class CheckCreditBalances extends Feature {
         let account = _this.budgetView
           .sidebarViewModel.accountCalculationsCollection
           .findItemByAccountId(a.accountId);
-        let currentMonth = moment(ynabToolKit.shared.parseSelectedMonth()).format('YYYY-MM');
+        let currentMonth = getSelectedMonth().format('YYYY-MM');
         let balance = account.clearedBalance + account.unclearedBalance;
         let monthlyBudget = _this.budgetView
           .monthlySubCategoryBudgetCalculationsCollection
@@ -137,10 +135,10 @@ export class CheckCreditBalances extends Feature {
         .match(/.[^\n]*/)[0]; // strip the Note string
 
       if (name === accountName) {
-        let categoryBalance = $(this).find('.budget-table-cell-available-div .user-data.currency');
+        let categoryBalance = $(this).find('.ynab-new-budget-available-number .user-data.currency');
         categoryBalance.removeClass('positive zero');
         if (!categoryBalance.hasClass('negative')) {
-          $(this).find('.budget-table-cell-available-div .user-data.currency').addClass('cautious toolkit-pif-cautious');
+          $(this).find('.ynab-new-budget-available-number').addClass('cautious toolkit-pif-cautious');
         }
       }
     });
@@ -152,8 +150,10 @@ export class CheckCreditBalances extends Feature {
       let inspectorBalance = $('.inspector-overview-available .user-data .user-data.currency');
       inspectorBalance.removeClass('positive zero');
       if (!inspectorBalance.hasClass('negative')) {
-        $('.inspector-overview-available .user-data .user-data.currency, .inspector-overview-available dt').addClass('cautious toolkit-pif-cautious');
+        $('.inspector-overview-available').addClass('toolkit-pif-cautious');
       }
+    } else {
+      $('.inspector-overview-available').removeClass('toolkit-pif-cautious');
     }
   }
 
@@ -161,7 +161,7 @@ export class CheckCreditBalances extends Feature {
     let inspectorName = $('.inspector-category-name.user-data').text().trim();
 
     if (name && name === inspectorName) {
-      let fDifference = ynabToolKit.shared.formatCurrency(difference);
+      let fDifference = formatCurrency(difference);
       let positive = '';
       if (ynab.unformat(difference) >= 0) {
         positive = '+';
@@ -187,10 +187,10 @@ export class CheckCreditBalances extends Feature {
         .data('name', name)
         .data('difference', difference)
         .empty()
-        .append(((ynabToolKit.l10nData && ynabToolKit.l10nData['toolkit.checkCreditBalances']) || 'Rectify Difference:'))
+        .append(l10n('toolkit.checkCreditBalances', 'Rectify Difference:'))
         .append(' ' + positive)
         .append($('<strong>', { class: 'user-data', title: fDifference })
-          .append(ynabToolKit.shared.appendFormattedCurrencyHtml($('<span>', { class: 'user-data currency zero' }), difference)));
+          .append($('<span>', { class: 'user-data currency zero' }).text(formatCurrency(difference))));
 
       if (difference !== 0) {
         button.removeAttr('disabled');
@@ -222,7 +222,7 @@ export class CheckCreditBalances extends Feature {
         .prop('title')
         .match(/.[^\n]*/)[0];
       if (accountName === name) {
-        let input = $(this).find('.budget-table-cell-budgeted div.currency-input').click()
+        let input = $(this).find('.budget-table-cell-budgeted div.ynab-new-currency-input').click()
           .find('input');
 
         let oldValue = input.val();

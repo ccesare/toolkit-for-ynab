@@ -5,7 +5,7 @@ export class CompactIncomeVsExpense extends Feature {
   injectCSS() { return require('./index.css'); }
 
   shouldInvoke() {
-    return getCurrentRouteName().indexOf('reports.income-expense') > -1;
+    return getCurrentRouteName().includes('reports.income-expense');
   }
 
   invoke() {

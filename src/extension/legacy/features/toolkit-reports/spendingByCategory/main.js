@@ -96,10 +96,9 @@
       }
 
       function showCategoryTransactions(event, category, transactions) {
-        let budgetController = ynabToolKit.shared.containerLookup('controller:budget');
-        let budgetViewModel = ynab.YNABSharedLib.getBudgetViewModel_BudgetMonthViewModel(transactions[0].get('date'))._result;
-        let displayItemsCollection = budgetViewModel.getBudgetMonthDisplayItemsCollection();
-        let subCategoryDisplayItem = displayItemsCollection.findItemByCategoryId(category.get('entityId'));
+        const budgetController = ynabToolKit.shared.containerLookup('controller:budget');
+        const displayItemsCollection = ynabToolKit.shared.containerLookup('controller:application').get('budgetViewModel.budgetMonthDisplayItemsCollection');
+        const subCategoryDisplayItem = displayItemsCollection.findItemByCategoryId(category.get('entityId'));
 
         budgetController.setProperties({
           selectedActivityCategory: subCategoryDisplayItem,
@@ -130,21 +129,19 @@
         // so make sure we have them in the report here. We ignore any splits, transfers, debt categories, and
         // positive starting balances
         filterTransaction(transaction) {
-          // can't use a promise here and the _result *should* if there's anything to worry about,
-          // it's this line but im still not worried about it.
-          const categoriesViewModel = ynab.YNABSharedLib.getBudgetViewModel_CategoriesViewModel()._result;
+          const isTransfer = transaction.getIsOnBudgetTransfer();
+          const categoriesViewModel = ynabToolKit.shared.containerLookup('controller:application').get('categoriesViewModel');
           const masterCategoryId = transaction.get('masterCategoryId');
-          const subCategoryId = transaction.get('subCategoryId');
-          const isTransfer = masterCategoryId === null || subCategoryId === null;
-          const ynabCategory = categoriesViewModel.getMasterCategoryById(masterCategoryId);
-          const isInternalDebtCategory = isTransfer ? false : ynabCategory.isDebtPaymentMasterCategory();
+          const masterCategory = categoriesViewModel.getMasterCategoryById(masterCategoryId);
+          const isInternalDebtCategory = !masterCategory ? false : masterCategory.isDebtPaymentMasterCategory();
 
           return (
+            !!masterCategory &&
             transaction.getAmount() &&
             !transaction.get('isSplit') &&
             !isTransfer &&
             !isInternalDebtCategory &&
-            !ynabCategory.isInternalMasterCategory()
+            !masterCategory.isInternalMasterCategory()
           );
         },
 

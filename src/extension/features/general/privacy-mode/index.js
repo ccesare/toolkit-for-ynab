@@ -1,17 +1,33 @@
 import { Feature } from 'toolkit/extension/features/feature';
+import { getToolkitStorageKey, setToolkitStorageKey } from 'toolkit/extension/utils/toolkit';
+
+const Settings = {
+  AlwaysOn: '1',
+  Toggle: '2'
+};
 
 export class PrivacyMode extends Feature {
+  injectCSS() {
+    let css = require('./index.css');
+
+    if (this.settings.enabled === Settings.Toggle) {
+      css += require('./toggle.css');
+    }
+
+    return css;
+  }
+
   shouldInvoke() {
     return true;
   }
 
   invoke() {
-    let toggle = ynabToolKit.shared.getToolkitStorageKey('privacy-mode');
+    let toggle = getToolkitStorageKey('privacy-mode');
     if (typeof toggle === 'undefined') {
-      ynabToolKit.shared.setToolkitStorageKey('privacy-mode', false);
+      setToolkitStorageKey('privacy-mode', false);
     }
 
-    if (ynabToolKit.options.PrivacyMode === '2') {
+    if (ynabToolKit.options.PrivacyMode === Settings.Toggle) {
       if (!$('#toolkit-togglePrivacy').length) {
         $('nav.sidebar.logged-in .sidebar-contents').after('<button id="toolkit-togglePrivacy"><i class="ember-view flaticon stroke lock-1"></i></button>');
 
@@ -20,33 +36,23 @@ export class PrivacyMode extends Feature {
           parent.togglePrivacyMode();
         });
       }
-    } else if (ynabToolKit.options.PrivacyMode === '1') {
-      ynabToolKit.shared.setToolkitStorageKey('privacy-mode', true);
+    } else if (ynabToolKit.options.PrivacyMode === Settings.AlwaysOn) {
+      setToolkitStorageKey('privacy-mode', true);
     }
 
     this.updatePrivacyMode();
-  }
-
-  injectCSS() {
-    let css = require('./index.css');
-
-    if (this.settings.enabled === '2') {
-      css += require('./toggle.css');
-    }
-
-    return css;
   }
 
   togglePrivacyMode() {
     $('button#toolkit-togglePrivacy').toggleClass('active');
 
-    let toggle = ynabToolKit.shared.getToolkitStorageKey('privacy-mode');
-    ynabToolKit.shared.setToolkitStorageKey('privacy-mode', !toggle);
+    let toggle = getToolkitStorageKey('privacy-mode');
+    setToolkitStorageKey('privacy-mode', !toggle);
     this.updatePrivacyMode();
   }
 
   updatePrivacyMode() {
-    let toggle = ynabToolKit.shared.getToolkitStorageKey('privacy-mode');
+    let toggle = getToolkitStorageKey('privacy-mode');
 
     if (toggle) {
       $('body').addClass('toolkit-privacyMode');

@@ -1,8 +1,7 @@
-import { containerLookup, controllerLookup } from './ember';
+import { getRouter, controllerLookup } from './ember';
 
 export function transitionTo() {
-  const router = containerLookup('router:main');
-  router.transitionTo(...arguments);
+  getRouter().transitionTo(...arguments);
 }
 
 export function getEntityManager() {
@@ -10,34 +9,56 @@ export function getEntityManager() {
 }
 
 export function getCurrentBudgetDate() {
-  let applicationController = controllerLookup('application');
-  let date = applicationController.get('monthString');
+  const date = controllerLookup('application').get('monthString');
   return { year: date.slice(0, 4), month: date.slice(4, 6) };
 }
 
+export function isCurrentRouteBudgetPage() {
+  const currentRoute = getCurrentRouteName();
+
+  return (
+    currentRoute === ynab.constants.RouteNames.BudgetSelect ||
+    currentRoute === ynab.constants.RouteNames.BudgetIndex
+  );
+}
+
+export function isCurrentRouteAccountsPage() {
+  const currentRoute = getCurrentRouteName();
+
+  return (
+    currentRoute === ynab.constants.RouteNames.AccountsSelect ||
+    currentRoute === ynab.constants.RouteNames.AccountsIndex
+  );
+}
+
 export function getCurrentRouteName() {
-  let applicationController = controllerLookup('application');
-  return applicationController.get('currentRouteName');
+  return controllerLookup('application').get('currentRouteName');
 }
 
 export function getCategoriesViewModel() {
-  const applicationController = controllerLookup('application');
-  return applicationController.get('categoriesViewModel');
+  return controllerLookup('application').get('categoriesViewModel');
 }
 
 export function getAllBudgetMonthsViewModel() {
-  const applicationController = controllerLookup('application');
-  return applicationController.get('allBudgetMonthsViewModel');
+  return controllerLookup('application').get('allBudgetMonthsViewModel');
 }
 
 export function getBudgetViewModel() {
-  const applicationController = controllerLookup('application');
-  return applicationController.get('budgetViewModel');
+  return controllerLookup('application').get('budgetViewModel');
+}
+
+export function getSelectedMonth() {
+  const monthString = controllerLookup('application').get('monthString');
+  return ynab.utilities.DateWithoutTime.createFromString(monthString, 'YYYYMM');
+}
+
+export function getSidebarViewModel() {
+  return controllerLookup('application').get('sidebarViewModel');
 }
 
 export function isCurrentMonthSelected() {
   const today = new ynab.utilities.DateWithoutTime();
-  const selectedMonth = getBudgetViewModel().get('month');
+  const selectedMonth = getSelectedMonth();
 
   if (selectedMonth) {
     return today.equalsByMonth(selectedMonth);
@@ -51,7 +72,8 @@ export function isYNABReady() {
     typeof Em !== 'undefined' &&
     typeof Ember !== 'undefined' &&
     typeof $ !== 'undefined' &&
-    $('.ember-view.layout').length &&
-    typeof ynabToolKit !== 'undefined'
+    !$('.ember-view.is-loading').length &&
+    typeof ynabToolKit !== 'undefined' &&
+    typeof YNABFEATURES !== 'undefined'
   );
 }

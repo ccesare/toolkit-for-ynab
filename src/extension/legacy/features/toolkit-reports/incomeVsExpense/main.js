@@ -129,16 +129,16 @@
         },
 
         filterTransaction(transaction) {
-          const categoriesViewModel = ynab.YNABSharedLib.getBudgetViewModel_CategoriesViewModel()._result;
+          const isTransfer = transaction.getIsOnBudgetTransfer();
+          const categoriesViewModel = ynabToolKit.shared.containerLookup('controller:application').get('categoriesViewModel');
           const masterCategoryId = transaction.get('masterCategoryId');
-          const subCategoryId = transaction.get('subCategoryId');
-          const isTransfer = masterCategoryId === null || subCategoryId === null;
-          const ynabCategory = categoriesViewModel.getMasterCategoryById(masterCategoryId);
-          const isInternalDebtCategory = isTransfer ? false : ynabCategory.isDebtPaymentMasterCategory();
+          const masterCategory = categoriesViewModel.getMasterCategoryById(masterCategoryId);
+          const isInternalDebtCategory = !masterCategory ? false : masterCategory.isDebtPaymentMasterCategory();
           const payee = transaction.getPayee();
           const isStartingBalance = payee && payee.getInternalName() === ynab.constants.InternalPayees.StartingBalance;
 
           return (
+            !!masterCategory &&
             !transaction.get('isSplit') &&
             !isTransfer &&
             !isInternalDebtCategory &&

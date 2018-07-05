@@ -1,26 +1,19 @@
 import { Feature } from 'toolkit/extension/features/feature';
-import { getCurrentRouteName } from 'toolkit/extension/utils/ynab';
+import { isCurrentRouteBudgetPage, isCurrentMonthSelected } from 'toolkit/extension/utils/ynab';
 
 export class CurrentMonthIndicator extends Feature {
   injectCSS() { return require('./index.css'); }
 
   shouldInvoke() {
-    return getCurrentRouteName().indexOf('budget') !== -1;
+    return isCurrentRouteBudgetPage();
   }
 
   invoke() {
-    if (this.inCurrentMonth()) {
+    if (isCurrentMonthSelected()) {
       $('.budget-header .budget-header-calendar').addClass('toolkit-highlight-current-month');
     } else {
       $('.budget-header .budget-header-calendar').removeClass('toolkit-highlight-current-month');
     }
-  }
-
-  inCurrentMonth() {
-    var today = new Date();
-    var selectedMonth = ynabToolKit.shared.parseSelectedMonth();
-    if (selectedMonth === null) return false;
-    return selectedMonth.getMonth() === today.getMonth() && selectedMonth.getYear() === today.getYear();
   }
 
   observe(changedNodes) {
