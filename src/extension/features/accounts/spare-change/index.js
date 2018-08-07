@@ -1,6 +1,7 @@
 import { Feature } from 'toolkit/extension/features/feature';
-import { getCurrentRouteName } from 'toolkit/extension/utils/ynab';
+import { isCurrentRouteAccountsPage } from 'toolkit/extension/utils/ynab';
 import { controllerLookup } from 'toolkit/extension/utils/ember';
+import { formatCurrency } from 'toolkit/extension/utils/currency';
 
 export class SpareChange extends Feature {
   selectedTransactions;
@@ -13,7 +14,7 @@ export class SpareChange extends Feature {
   }
 
   shouldInvoke() {
-    return getCurrentRouteName().indexOf('account') > -1;
+    return isCurrentRouteAccountsPage();
   }
 
   // invoke has potential of being pretty processing heavy (needing to sort content, then update calculation for every row)
@@ -36,9 +37,9 @@ export class SpareChange extends Feature {
     Ember.run.debounce(this, function () {
       this.accountsController.addObserver('areChecked', this, 'onYnabSelectionChanged');
 
-      if (getCurrentRouteName().indexOf('accounts') > -1) {
+      if (isCurrentRouteAccountsPage()) {
         if (this.applicationController.get('selectedAccountId')) {
-          this.onYnabGridyBodyChanged();
+          this.onYnabGridBodyChanged();
         } else {
           this.removeHeader();
         }
@@ -153,15 +154,15 @@ export class SpareChange extends Feature {
         currencySpan.addClass('zero');
       }
 
-      let formatted = ynabToolKit.shared.formatCurrency(spareChange);
-      spareChangeAmount.attr('title', formatted.string);
+      let formatted = formatCurrency(spareChange);
+      spareChangeAmount.attr('title', formatted);
 
-      let formattedHtml = formatted.string.replace(/\$/g, '<bdi>$</bdi>');
+      let formattedHtml = formatted.replace(/\$/g, '<bdi>$</bdi>');
       currencySpan.html(formattedHtml);
     }
   }
 
-  onYnabGridyBodyChanged() {
+  onYnabGridBodyChanged() {
     Ember.run.debounce(this, function () {
       this.setSelectedTransactions();
       this.updateSpareChangeCalculation();
@@ -171,6 +172,6 @@ export class SpareChange extends Feature {
 
   onYnabSelectionChanged() {
     this.selectedTransactions = undefined;
-    this.onYnabGridyBodyChanged();
+    this.onYnabGridBodyChanged();
   }
 }

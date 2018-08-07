@@ -53,18 +53,19 @@ This extension uses three main things in its build process:
 
 - ESLint: Checks the style of your code to make sure it matches our style guide as you build.
 - Babel: Transpiles ES2015 back to ES5 for browser support of newer JS syntax.
-- Webpack: Bundles entrypoints of all Web Extension pages (background, popup, options,
+- Webpack: Bundles entry points for all Web Extension pages (background, popup, options,
 content scripts) into single files and manages most of the build process.
 
 1. Clone the repository.
 2. Install `node` and `yarn` (both are available through `brew`, test with node-v9.2.1 and yarn-1.3.2)
-3. Ensure command line developer tools are installed `xcode-select --install`.
+3. On OSX, ensure command line developer tools are installed `xcode-select --install`.
 4. Run `yarn install` within the folder you cloned. This will install all the dependencies needed for the project.
-5. Run `yarn build` from within the folder you cloned which will build the Toolkit.
+5. Run `yarn build:development` from within the folder you cloned which will build the Toolkit.
   - Whilst developing, you may prefer to run `yarn watch` which will monitor the project
-    directory for changes and build automatically.
+    directory for changes and run `yarn build:development` automatically for you.
 6. The built extension will be available in the `dist/extension` folder. Navigate to `chrome://extensions`
   and select the `dist/extension` folder as the folder that you would like to load.
+7. You may need to reload the Chrome plugin if it's been already installed. Visit `chrome://extensions` and click the reload icon ![](https://camo.githubusercontent.com/4d41ad79a8241b062ea59fa332b39028c1469703/68747470733a2f2f636c2e6c792f31633167304633443142316f2f496d616765253230323031382d30362d3034253230617425323031362e32302e33342e706e67)
 
 # Development Methodology
 
@@ -98,12 +99,8 @@ and allows us to remove the burden of boilerplate from new contributions.
 
 The source code for this lives in the `src/extension/features` directory.
 
-##### Old Framework [Documentation](/docs/building-features-legacy.md)
-The old framework lives in the `src/extension/legacy` directory and makes use of
-`babel` to transpile the javascript before getting built into the `dist` folder
-
 **Important note about line feeds!!!**
-You must ensure that your code editor is configued to use Unix style line feeds (LFs)
+You must ensure that your code editor is configured to use Unix style line feeds (LFs)
 or the build will fail. This will primarily affect contributors using Windows as
 the LFs are different on that platform.
 

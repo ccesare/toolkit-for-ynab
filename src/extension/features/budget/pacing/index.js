@@ -1,9 +1,9 @@
 import { Feature } from 'toolkit/extension/features/feature';
-import { getCurrentRouteName, isCurrentMonthSelected } from 'toolkit/extension/utils/ynab';
+import { isCurrentRouteBudgetPage, isCurrentMonthSelected } from 'toolkit/extension/utils/ynab';
 import { getEmberView } from 'toolkit/extension/utils/ember';
 import { getDeemphasizedCategories, migrateLegacyPacingStorage, pacingForCategory, setDeemphasizedCategories } from 'toolkit/extension/utils/pacing';
 import { formatCurrency } from 'toolkit/extension/utils/currency';
-import { i10n } from 'toolkit/extension/utils/toolkit';
+import { l10n } from 'toolkit/extension/utils/toolkit';
 
 export class Pacing extends Feature {
   injectCSS() { return require('./index.css'); }
@@ -13,14 +13,14 @@ export class Pacing extends Feature {
   }
 
   shouldInvoke() {
-    return getCurrentRouteName().includes('budget') && isCurrentMonthSelected();
+    return isCurrentRouteBudgetPage() && isCurrentMonthSelected();
   }
 
   invoke() {
     $('#ynab-toolkit-pacing-style').remove();
     $('.budget-table-header .budget-table-cell-available')
       .after(`<li class="toolkit-cell-pacing">
-        ${i10n('toolkit.pacing', 'PACING')}
+        ${l10n('toolkit.pacing', 'PACING')}
       </li>`);
 
     $(`<style type="text/css" id="ynab-toolkit-pacing-style">
@@ -34,10 +34,10 @@ export class Pacing extends Feature {
       .not('.is-debt-payment-category')
       .not('.is-master-category')
       .each((index, element) => {
-        const { data } = getEmberView(element.id);
-        const pacingCalculation = pacingForCategory(data);
+        const { category } = getEmberView(element.id);
+        const pacingCalculation = pacingForCategory(category);
 
-        const $display = this.generateDisplay(data.get('subCategory.entityId'), pacingCalculation);
+        const $display = this.generateDisplay(category.get('subCategory.entityId'), pacingCalculation);
         $(element).append($display.click((event) => {
           const deemphasizedCategories = getDeemphasizedCategories();
           const subCategoryId = event.target.getAttribute('data-sub-category-id');
@@ -117,7 +117,7 @@ export class Pacing extends Feature {
     const moreOrLess = paceAmount >= 0 ? 'less' : 'more';
     const aheadOrBehind = paceAmount >= 0 ? 'ahead of' : 'behind';
     const hideOrUnhide = isDeemphasized ? 'unhide' : 'hide';
-    const formattedDisplay = ynabToolKit.shared.formatCurrency(Math.abs(paceAmount), false);
+    const formattedDisplay = formatCurrency(Math.abs(paceAmount), false);
     const formattedDisplayInDays = Math.abs(daysOffTarget);
     const days = formattedDisplayInDays === 1 ? 'day' : 'days';
     const transactionsFormat = transactions.length === 1 ? 'transaction' : 'transactions';

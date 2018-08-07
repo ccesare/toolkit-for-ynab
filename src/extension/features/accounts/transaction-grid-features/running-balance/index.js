@@ -1,7 +1,11 @@
 import { TransactionGridFeature } from '../feature';
 import { controllerLookup } from 'toolkit/extension/utils/ember';
+import { isCurrentRouteAccountsPage, getEntityManager } from 'toolkit/extension/utils/ynab';
+import { formatCurrency } from 'toolkit/extension/utils/currency';
 
 export class RunningBalance extends TransactionGridFeature {
+  hasInitialized = false;
+
   injectCSS() {
     let css = require('./index.css');
 
@@ -17,8 +21,14 @@ export class RunningBalance extends TransactionGridFeature {
   }
 
   shouldInvoke() {
-    const applicationController = controllerLookup('application');
-    return applicationController.get('selectedAccountId') !== null;
+    return (
+      isCurrentRouteAccountsPage() &&
+      controllerLookup('application').get('selectedAccountId') !== null
+    );
+  }
+
+  invoke() {
+    this.initializeRunningBalances();
   }
 
   cleanup() {
@@ -75,29 +85,25 @@ export class RunningBalance extends TransactionGridFeature {
       currentRowRunningBalance.addClass('ynab-grid-cell-toolkit-running-balance');
 
       const transaction = this.get('content');
+      const runningBalance = transaction.__ynabToolKitRunningBalance;
+      if (typeof runningBalance !== 'undefined') {
+        const currencySpan = $('.user-data', currentRowRunningBalance);
+        if (runningBalance < 0) {
+          currencySpan.addClass('user-data currency negative');
+        } else if (runningBalance > 0) {
+          currencySpan.addClass('user-data currency positive');
+        } else {
+          currencySpan.addClass('user-data currency zero');
+        }
 
-      let runningBalance = transaction.__ynabToolKitRunningBalance;
-      if (typeof runningBalance === 'undefined') {
-        calculateRunningBalance(selectedAccountId);
-        runningBalance = transaction.__ynabToolKitRunningBalance;
+        if (transaction.get('parentEntityId') !== null) {
+          currencySpan.text('');
+        } else {
+          currencySpan.text(formatCurrency(runningBalance));
+        }
+
+        currentRowRunningBalance.insertAfter($('.ynab-grid-cell-inflow', $currentRow));
       }
-
-      const currencySpan = $('.user-data', currentRowRunningBalance);
-      if (runningBalance < 0) {
-        currencySpan.addClass('user-data currency negative');
-      } else if (runningBalance > 0) {
-        currencySpan.addClass('user-data currency positive');
-      } else {
-        currencySpan.addClass('user-data currency zero');
-      }
-
-      if (transaction.get('parentEntityId') !== null) {
-        currencySpan.text('');
-      } else {
-        currencySpan.text(ynabToolKit.shared.formatCurrency(runningBalance));
-      }
-
-      currentRowRunningBalance.insertAfter($('.ynab-grid-cell-inflow', $currentRow));
     } else if (!isActions && !$('.ynab-grid-cell-toolkit-running-balance', this.element).length) {
       $('<div class="ynab-grid-cell ynab-grid-cell-toolkit-running-balance">')
         .insertAfter($('.ynab-grid-cell-inflow', this.element));
@@ -105,70 +111,78 @@ export class RunningBalance extends TransactionGridFeature {
   }
 
   initializeRunningBalances() {
-    return ynab.YNABSharedLib.defaultInstance.entityManager.accountsCollection.forEach((account) => {
-      // we call this now so it's guaranteed to be resolved later
-      return ynab.YNABSharedLib.defaultInstance.getBudgetViewModel_AccountTransactionsViewModel(account.entityId)
-        .then(() => {
-          calculateRunningBalance(account.entityId);
-        });
-    });
-  }
-}
-
-function attachAnyItemChangedListener(accountId, accountViewModel) {
-  accountViewModel.__ynabToolKitAnyItemChangedListener = true;
-  accountViewModel.get('visibleTransactionDisplayItems')
-    .addObserver('anyItemChangedCounter', function () {
-      calculateRunningBalance(accountId);
-    });
-}
-
-// Using ._result here bcause we can guarantee that we've already invoked the
-// getBudgetViewModel_AccountTransactionsViewModel() function when we initialized
-function calculateRunningBalance(accountId) {
-  const accountsController = controllerLookup('accounts');
-  const accountViewModel = ynab.YNABSharedLib.defaultInstance
-    .getBudgetViewModel_AccountTransactionsViewModel(accountId)._result;
-
-  if (!accountViewModel.__ynabToolKitAnyItemChangedListener) {
-    attachAnyItemChangedListener(accountId, accountViewModel);
-  }
-
-  const transactions = accountViewModel.get('visibleTransactionDisplayItems');
-  const sorted = transactions.slice().sort((a, b) => {
-    var propA = a.get('date');
-    var propB = b.get('date');
-
-    if (propA instanceof ynab.utilities.DateWithoutTime) propA = propA.getUTCTime();
-    if (propB instanceof ynab.utilities.DateWithoutTime) propB = propB.getUTCTime();
-
-    var res = Ember.compare(propA, propB);
-
-    if (res === 0) {
-      res = Ember.compare(a.getAmount(), b.getAmount());
-      if (accountsController.get('sortAscending')) {
-        return res;
-      }
-
-      return -res;
-    }
-
-    return res;
-  });
-
-  let runningBalance = 0;
-  sorted.forEach((transaction) => {
-    if (transaction.get('parentEntityId') !== null) {
-      transaction.__ynabToolKitRunningBalance = runningBalance;
+    const { accountsCollection } = getEntityManager();
+    if (accountsCollection.length === 0 || this.hasInitialized) {
       return;
     }
 
-    if (transaction.get('inflow')) {
-      runningBalance += transaction.get('inflow');
-    } else if (transaction.get('outflow')) {
-      runningBalance -= transaction.get('outflow');
+    this.hasInitialized = true;
+
+    const promises = [];
+    accountsCollection.forEach((account) => {
+      const viewModel = ynab.YNABSharedLib.defaultInstance.getBudgetViewModel_AccountTransactionsViewModel(account.entityId);
+      promises.push(viewModel.then(() => calculateRunningBalance(account.entityId)));
+    });
+
+    return Promise.all(promises);
+  }
+}
+
+function attachAnyItemChangedListener(accountId, transactionViewModel) {
+  transactionViewModel.__ynabToolKitAnyItemChangedListener = true;
+  transactionViewModel.get('visibleTransactionDisplayItems')
+    .addObserver('anyItemChangedCounter', function (displayItems) {
+      const updatedAccountId = displayItems.get('firstObject.accountId');
+      if (updatedAccountId) {
+        calculateRunningBalance(updatedAccountId);
+      }
+    });
+}
+
+function calculateRunningBalance(accountId) {
+  return ynab.YNABSharedLib.defaultInstance.getBudgetViewModel_AccountTransactionsViewModel(accountId).then((transactionViewModel) => {
+    if (!transactionViewModel.__ynabToolKitAnyItemChangedListener) {
+      attachAnyItemChangedListener(accountId, transactionViewModel);
     }
 
-    transaction.__ynabToolKitRunningBalance = runningBalance;
+    // Sort all transactions is ascending order first. If the dates match, sort transactions
+    // in ascending order (outflows are negative when using `.getAmount`). If the dates are
+    // equal, the amounts are always sorted in descending order.
+    const transactions = transactionViewModel.get('visibleTransactionDisplayItems');
+    const sorted = transactions.slice().sort((a, b) => {
+      let propA = a.get('date');
+      let propB = b.get('date');
+
+      if (propA instanceof ynab.utilities.DateWithoutTime) propA = propA.getUTCTime();
+      if (propB instanceof ynab.utilities.DateWithoutTime) propB = propB.getUTCTime();
+
+      const dateCompare = Ember.compare(propA, propB);
+      if (dateCompare === 0) {
+        const amountCompare = Ember.compare(a.getAmount(), b.getAmount());
+        if (amountCompare === 0) {
+          return Ember.compare(a.getEntityId(), b.getEntityId());
+        }
+
+        return -amountCompare;
+      }
+
+      return dateCompare;
+    });
+
+    let runningBalance = 0;
+    sorted.forEach((transaction) => {
+      if (transaction.get('parentEntityId') !== null) {
+        transaction.__ynabToolKitRunningBalance = runningBalance;
+        return;
+      }
+
+      if (transaction.get('inflow')) {
+        runningBalance += transaction.get('inflow');
+      } else if (transaction.get('outflow')) {
+        runningBalance -= transaction.get('outflow');
+      }
+
+      transaction.__ynabToolKitRunningBalance = runningBalance;
+    });
   });
 }

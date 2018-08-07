@@ -1,6 +1,7 @@
 import { Feature } from 'toolkit/extension/features/feature';
-import { getCurrentRouteName, transitionTo } from 'toolkit/extension/utils/ynab';
+import { isCurrentRouteBudgetPage, transitionTo } from 'toolkit/extension/utils/ynab';
 import { controllerLookup } from 'toolkit/extension/utils/ember';
+import { l10nMonth, MonthStyle } from 'toolkit/extension/utils/toolkit';
 
 // TODO: move income-from-last-month to the new framework and just export this
 // variable from that feature
@@ -10,7 +11,7 @@ export class StealingFromFuture extends Feature {
   injectCSS() { return require('./index.css'); }
 
   shouldInvoke() {
-    return getCurrentRouteName().indexOf('budget') !== -1;
+    return isCurrentRouteBudgetPage();
   }
 
   isMonthABeforeB(a, b) {
@@ -30,7 +31,7 @@ export class StealingFromFuture extends Feature {
     let earliestNegativeMonth = null;
     let earliestNegativeMonthCalculation = null;
     budgetViewModel.get('allBudgetMonthsViewModel.monthlyBudgetCalculationsCollection').forEach((monthCalculation) => {
-      if (this.isMonthEntityIdFuture(monthCalculation.get('entityId'))) {
+      if (!this.isMonthEntityIdPast(monthCalculation.get('entityId'))) {
         const entityDate = monthCalculation.get('entityId').match(/mbc\/(.*)\/.*/)[1];
         const entityMonth = entityDate.split('-').map((val) => parseInt(val))[1];
 
@@ -69,12 +70,12 @@ export class StealingFromFuture extends Feature {
 
     const availableToBudget = earliestNegativeMonthCalculation.getAvailableToBudget();
     $('#ynabtk-stealing-amount', name).remove();
-    name.append('<span id="ynabtk-stealing-amount"> (' +
-        '<strong class="currency">' +
-          `${ynab.formatCurrency(availableToBudget)} in ` +
-          `<a class="ynabtk-month-link">${ynabToolKit.shared.monthsFull[earliestNegativeMonth - 1]}</a>` +
-        '</strong>' +
-      ')</span>');
+    name.append(`<span id="ynabtk-stealing-amount"> (
+        <strong class="currency">
+          ${ynab.formatCurrency(availableToBudget)} in
+          <a class="ynabtk-month-link">${l10nMonth(earliestNegativeMonth - 1, MonthStyle.Long)}</a>
+        </strong>
+      )</span>`);
 
     $('.ynabtk-month-link', name).click((event) => {
       event.preventDefault();
@@ -84,24 +85,23 @@ export class StealingFromFuture extends Feature {
     });
   }
 
-  isMonthEntityIdFuture(entityId) {
+  isMonthEntityIdPast(entityId) {
     const currentYear = parseInt(moment().format('YYYY'));
     const currentMonth = parseInt(moment().format('MM'));
     const entityDate = entityId.match(/mbc\/(.*)\/.*/)[1];
     const [entityYear, entityMonth] = entityDate.split('-').map((val) => parseInt(val));
 
     const isNextYear = entityYear > currentYear;
-    const isCurrentYearFutureMonth = entityYear === currentYear && entityMonth > currentMonth;
+    const isCurrentYearFutureMonth = entityYear === currentYear && entityMonth >= currentMonth;
     if (isNextYear || isCurrentYearFutureMonth) {
-      return true;
+      return false;
     }
 
-    return false;
+    return true;
   }
 
   invoke() {
-    let budgetController = ynabToolKit.shared.containerLookup('controller:budget');
-    let budgetViewModel = budgetController.get('budgetViewModel');
+    const budgetViewModel = controllerLookup('budget').get('budgetViewModel');
     if (budgetViewModel) {
       budgetViewModel.get('allBudgetMonthsViewModel.monthlyBudgetCalculationsCollection').forEach((month) => {
         month.addObserver('availableToBudget', this.onAvailableToBudgetChange.bind(this, budgetViewModel));

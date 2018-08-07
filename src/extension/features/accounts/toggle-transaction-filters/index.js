@@ -1,5 +1,5 @@
 import { Feature } from 'toolkit/extension/features/feature';
-import { getCurrentRouteName } from 'toolkit/extension/utils/ynab';
+import { isCurrentRouteAccountsPage } from 'toolkit/extension/utils/ynab';
 import { controllerLookup } from 'toolkit/extension/utils/ember';
 
 export class ToggleTransactionFilters extends Feature {
@@ -8,7 +8,7 @@ export class ToggleTransactionFilters extends Feature {
   }
 
   shouldInvoke() {
-    return getCurrentRouteName().indexOf('account') > -1;
+    return isCurrentRouteAccountsPage();
   }
 
   onRouteChanged() {
@@ -76,26 +76,30 @@ export class ToggleTransactionFilters extends Feature {
   }
 
   initToggleButtons() {
-    // get internal filters
-    let container = controllerLookup('accounts');
-    let settingReconciled = container.filters.get('reconciled');
-    let settingScheduled = container.filters.get('scheduled');
+    const controller = controllerLookup('accounts');
+    if (!controller) {
+      return;
+    }
+
+    const settingReconciled = controller.get('filters.reconciled');
+    const settingScheduled = controller.get('filters.scheduled');
 
     // insert or edit buttons
     if (!$('#toolkit-toggleReconciled').length) {
       // create buttons if they don't already exist
       $('.accounts-toolbar .accounts-toolbar-right')
         .append($('<button>', { id: 'toolkit-toggleReconciled', class: 'button', title: 'Toggle Reconciled Transactions' })
+          .click(() => { this.toggleReconciled(); })
           .append($('<i>', { class: 'flaticon solid lock-1 is-reconciled' })
           // show both text and icons or just the icon
-            .append(this.settings.enabled === '2' ? ' Reconciled' : '')
-            .click(() => { this.toggleReconciled(); })));
+            .append(this.settings.enabled === '2' ? ' Reconciled' : '')));
+
       $('.accounts-toolbar .accounts-toolbar-right')
         .append($('<button>', { id: 'toolkit-toggleScheduled', class: 'button', title: 'Toggle Scheduled Transactions' })
+          .click(() => { this.toggleScheduled(); })
           .append($('<i>', { class: 'flaticon solid clock-1 is-reconciled' })
           // show both text and icons or just the icon
-            .append(this.settings.enabled === '2' ? ' Scheduled' : '')
-            .click(() => { this.toggleScheduled(); })));
+            .append(this.settings.enabled === '2' ? ' Scheduled' : '')));
 
       this.updateToggleButtons(settingReconciled, settingScheduled);
     } else {
