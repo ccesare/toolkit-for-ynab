@@ -10,11 +10,14 @@ export class DisplayTotalMonthlyGoals extends Feature {
 
   extractCategoryGoalInformation(element) {
     const emberId = element.id;
-    const viewData = getEmberView(emberId).category;
+    const category = getEmberView(emberId, 'category');
+    if (!category) {
+      return;
+    }
 
-    const goalType = viewData.get('subCategory.goalType');
-    const monthlyFunding = viewData.get('subCategory.monthlyFunding');
-    const targetBalanceDate = viewData.get('monthlySubCategoryBudgetCalculation.goalTarget');
+    const goalType = category.get('subCategory.goalType');
+    const monthlyFunding = category.get('subCategory.monthlyFunding');
+    const targetBalanceDate = category.get('monthlySubCategoryBudgetCalculation.goalTarget');
 
     let monthlyGoalAmount = 0;
 
@@ -29,9 +32,11 @@ export class DisplayTotalMonthlyGoals extends Feature {
       }
     }
 
+    // if the user edits a goal amount, it's turned into a string on the `subCategory`
+    // object. just convert everything into a number just in case.
     return {
-      monthlyGoalAmount,
-      isChecked: viewData.get('isChecked')
+      monthlyGoalAmount: parseInt(monthlyGoalAmount, 10),
+      isChecked: category.get('isChecked'),
     };
   }
 
@@ -39,11 +44,14 @@ export class DisplayTotalMonthlyGoals extends Feature {
     const categoryGoals = {
       total: 0,
       checkedTotal: 0,
-      checkedCount: 0
+      checkedCount: 0,
     };
 
-    $('.budget-table-row.is-sub-category').each((index, element) => {
+    $('.budget-table-row.is-sub-category').each((_, element) => {
       const categoryGoal = this.extractCategoryGoalInformation(element);
+      if (!categoryGoal) {
+        return;
+      }
 
       categoryGoals.total += categoryGoal.monthlyGoalAmount;
       if (categoryGoal.isChecked) {
@@ -53,15 +61,13 @@ export class DisplayTotalMonthlyGoals extends Feature {
     });
 
     return {
-      amount: categoryGoals.checkedCount > 0
-        ? categoryGoals.checkedTotal
-        : categoryGoals.total,
-      checkedCategoryCount: categoryGoals.checkedCount
+      amount: categoryGoals.checkedCount > 0 ? categoryGoals.checkedTotal : categoryGoals.total,
+      checkedCategoryCount: categoryGoals.checkedCount,
     };
   }
 
   createInspectorElement(goalsAmount) {
-    const currencyClass = (goalsAmount === 0) ? 'zero' : 'positive';
+    const currencyClass = goalsAmount === 0 ? 'zero' : 'positive';
 
     return $(`
       <div class="total-monthly-goals-inspector">
@@ -86,14 +92,15 @@ export class DisplayTotalMonthlyGoals extends Feature {
       return;
     }
 
-    this.createInspectorElement(monthlyGoals.amount)
-      .insertBefore($('.inspector-quick-budget'));
+    this.createInspectorElement(monthlyGoals.amount).insertBefore($('.inspector-quick-budget'));
   }
 
   observe(changedNodes) {
     if (!this.shouldInvoke()) return;
-    if (changedNodes.has('budget-table-row is-sub-category is-checked') ||
-        changedNodes.has('budget-table-row is-sub-category')) {
+    if (
+      changedNodes.has('budget-table-row is-sub-category is-checked') ||
+      changedNodes.has('budget-table-row is-sub-category')
+    ) {
       this.invoke();
     }
   }

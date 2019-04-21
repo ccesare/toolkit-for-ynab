@@ -1,5 +1,10 @@
-export function getEmberView(viewId) {
-  return getViewRegistry()[viewId];
+export function getEmberView(viewId, getterString) {
+  const view = getViewRegistry()[viewId];
+  if (getterString && view) {
+    return view.get(getterString);
+  }
+
+  return view;
 }
 
 export function getRouter() {
@@ -27,27 +32,25 @@ export function lookupForReopen(name) {
   // to resolve the cached version.
   try {
     appContainer.lookup(name);
-  } catch (e) { /* not much we can do about it */ }
+  } catch (e) {
+    /* not much we can do about it */
+  }
 
   return appContainer.factoryCache[name];
 }
 
 /* Private Functions */
 function containerLookup(containerName) {
-  const viewRegistry = getViewRegistry();
-  const viewId = Ember.keys(viewRegistry)[0];
-  const view = viewRegistry[viewId];
-
   let container;
   try {
-    container = view.container.lookup(containerName);
+    container = __ynabapp__.__container__.lookup(containerName);
   } catch (e) {
-    container = view.container.factoryCache[containerName];
+    container = __ynabapp__.__container__.factoryCache[containerName];
   }
 
   return container;
 }
 
 function getViewRegistry() {
-  return Ember.Component.create().get('_viewRegistry');
+  return __ynabapp__.__container__.lookup('-view-registry:main');
 }
